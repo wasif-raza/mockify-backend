@@ -36,3 +36,13 @@ app:
       secure: true           # REQUIRED in prod
       same-site: None        # REQUIRED for cross-domain frontend
 
+# Actuator configuration (Only for Admin)
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, info
+
+  endpoint:
+    health:
+      show-details: when_authorized
