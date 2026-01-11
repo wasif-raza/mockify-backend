@@ -35,3 +35,4 @@ app:
       max-age: 604800        # 7 days
       secure: true           # REQUIRED in prod
       same-site: None        # REQUIRED for cross-domain frontend
+

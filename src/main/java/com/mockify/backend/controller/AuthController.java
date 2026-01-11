@@ -1,10 +1,7 @@
 package com.mockify.backend.controller;
 
-import com.mockify.backend.dto.request.auth.ForgotPasswordRequest;
-import com.mockify.backend.dto.request.auth.ResetPasswordRequest;
+import com.mockify.backend.dto.request.auth.*;
 import com.mockify.backend.dto.response.AuthResult;
-import com.mockify.backend.dto.request.auth.LoginRequest;
-import com.mockify.backend.dto.request.auth.RegisterRequest;
 import com.mockify.backend.dto.response.auth.AuthResponse;
 import com.mockify.backend.dto.response.auth.UserResponse;
 import com.mockify.backend.security.CookieUtil;
@@ -13,15 +10,16 @@ import com.mockify.backend.service.AuthService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
-
 import java.util.UUID;
 
+@Slf4j //Todo: Must remove
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/auth")
@@ -33,14 +31,26 @@ public class AuthController {
     private final CookieUtil cookieUtil;
 
     @PostMapping("/register")
-    public ResponseEntity<AuthResponse> register(
+    public ResponseEntity<Void> register(
             @Valid @RequestBody RegisterRequest request) {
 
-        AuthResult authResult = authService.registerAndLogin(request);
 
-        return ResponseEntity.status(HttpStatus.CREATED)
-                .header(HttpHeaders.SET_COOKIE, authResult.refreshCookie().toString())
-                .body(authResult.response());
+        authService.requestRegistration(request);
+
+        return ResponseEntity.accepted().build();
+    }
+
+    @GetMapping("/register/verify")
+    public ResponseEntity<AuthResponse> verify(
+            @RequestParam String token) {
+
+        AuthResult result =
+                authService.completeRegistration(token);
+
+        return ResponseEntity.ok()
+                .header(HttpHeaders.SET_COOKIE,
+                        result.refreshCookie().toString())
+                .body(result.response());
     }
 
     @PostMapping("/login")
@@ -113,7 +123,6 @@ public class AuthController {
                         cookieUtil.clearRefreshToken().toString())
                 .build();
     }
-
 }
 
 

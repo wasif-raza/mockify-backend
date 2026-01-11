@@ -1,5 +1,6 @@
 package com.mockify.backend.service.impl;
 
+import com.mockify.backend.dto.request.auth.PendingRegistration;
 import com.mockify.backend.dto.response.AuthResult;
 import com.mockify.backend.dto.response.TokenPair;
 import com.mockify.backend.dto.request.auth.LoginRequest;
@@ -18,6 +19,7 @@ import com.mockify.backend.security.CookieUtil;
 import com.mockify.backend.security.JwtTokenProvider;
 import com.mockify.backend.security.RefreshTokenBlacklist;
 import com.mockify.backend.service.AuthService;
+import com.mockify.backend.service.EmailVerificationService;
 import com.mockify.backend.service.MailService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -46,52 +48,81 @@ public class AuthServiceImpl implements AuthService {
     private final PasswordResetTokenRepository passwordResetTokenRepository;
     private final MailService mailService;
     private final RefreshTokenBlacklist refreshTokenBlacklist;
+    private final EmailVerificationService emailVerificationService;
 
     @Value("${app.frontend.reset-password-url}")
     private String resetPasswordBaseUrl;
+    @Value("${app.frontend.reset-password-url}")
+    private String emailVerificationBaseUrl;
 
     // Constants
     private static final String AUTH_PROVIDER_LOCAL = "local";
     private static final String TOKEN_TYPE_BEARER = "Bearer";
 
+
     @Override
     @Transactional
-    public AuthResult registerAndLogin(RegisterRequest request) {
+    public void requestRegistration(RegisterRequest request) {
+
+        // Todo: Remove it
+        log.info("Inside service Register request");
 
         if (userRepository.existsByEmail(request.getEmail())) {
-            log.warn("User registration failed email={} reason=already_exists", request.getEmail());
             throw new DuplicateResourceException("Email already registered");
         }
 
-        // Create user
-        log.info("User registration started email={}", request.getEmail());
+        String encodedPassword =
+                passwordEncoder.encode(request.getPassword());
+
+        String token = emailVerificationService.createVerification(
+                request.getName(),
+                request.getEmail(),
+                encodedPassword
+        );
+
+        String verifyLink = emailVerificationBaseUrl + "?token=" + token;
+
+        mailService.sendEmailVerificationMail(
+                request.getEmail(),
+                verifyLink
+        );
+
+        log.info("Registration verification requested email={}",
+                request.getEmail());
+    }
+
+    @Override
+    @Transactional
+    public AuthResult completeRegistration(String token) {
+
+        PendingRegistration pending =
+                emailVerificationService.verifyAndConsume(token);
+
         User user = new User();
-        user.setName(request.getName());
-        user.setEmail(request.getEmail());
-        user.setPassword(passwordEncoder.encode(request.getPassword()));
+        user.setName(pending.getName());
+        user.setEmail(pending.getEmail());
+        user.setPassword(pending.getEncodedPassword());
         user.setProviderName(AUTH_PROVIDER_LOCAL);
-        user.setUsername(request.getEmail().split("@")[0].toLowerCase());
+        user.setUsername(
+                pending.getEmail().split("@")[0].toLowerCase()
+        );
 
         User savedUser = userRepository.save(user);
-        log.info("User registered successfully userId={}", savedUser.getId());
 
-        // Generate tokens
         TokenPair tokens = new TokenPair(
                 jwtTokenProvider.generateAccessToken(savedUser.getId()),
                 jwtTokenProvider.generateRefreshToken(savedUser.getId())
         );
 
-        // Build cookie
-        ResponseCookie cookie = cookieUtil.createRefreshToken(tokens.refreshToken());
+        ResponseCookie cookie =
+                cookieUtil.createRefreshToken(tokens.refreshToken());
 
-        // Build response body
         AuthResponse response = AuthResponse.builder()
                 .accessToken(tokens.accessToken())
                 .tokenType(TOKEN_TYPE_BEARER)
                 .expiresIn(jwtTokenProvider.getAccessTokenExpiration())
-                .user(userMapper.toResponse(user))
+                .user(userMapper.toResponse(savedUser))
                 .build();
-
 
         return new AuthResult(response, cookie);
     }

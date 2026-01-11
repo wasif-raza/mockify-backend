@@ -42,6 +42,43 @@ public class MailServiceImpl implements MailService {
             // DO NOT throw, avoid leaking info
         }
     }
+    @Override
+    public void sendEmailVerificationMail(String to, String verifyLink) {
+
+        try {
+            MimeMessage message = mailSender.createMimeMessage();
+            MimeMessageHelper helper =
+                    new MimeMessageHelper(message, true, "UTF-8");
+
+            helper.setFrom("Mockify <mockify.noreply@gmail.com>");
+            helper.setTo(to);
+            helper.setSubject("Verify your Mockify email");
+            helper.setText(buildVerificationHtml(verifyLink), true);
+
+            mailSender.send(message);
+
+            log.info("Verification email sent to {}", to);
+
+        } catch (Exception ex) {
+            log.error("Failed to send verification email to {}", to, ex);
+        }
+    }
+
+    private String buildVerificationHtml(String link) {
+        return """
+    <h2>Verify your email</h2>
+    <p>Click the button below to verify your email address.</p>
+    <a href="%s"
+       style="padding:10px 20px;
+              background:#2da44e;
+              color:white;
+              text-decoration:none;
+              border-radius:6px;">
+        Verify Email
+    </a>
+    <p>This link expires in 15 minutes.</p>
+    """.formatted(link);
+    }
 
     private String buildHtmlContent(String resetLink) {
         return """
