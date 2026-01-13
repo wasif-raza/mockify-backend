@@ -4,6 +4,7 @@ import com.mockify.backend.dto.request.auth.PendingRegistration;
 import com.mockify.backend.service.EmailVerificationService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 
@@ -17,10 +18,14 @@ import java.util.UUID;
 public class EmailVerificationServiceImpl
         implements EmailVerificationService {
 
-    private static final Duration VERIFICATION_TTL =
-            Duration.ofMinutes(15);
+    @Value("${app.verification.email.ttl-minutes}")
+    private Long emailVerificationTTL;
 
     private final RedisTemplate<String, Object> redisTemplate;
+
+    private Duration verificationTtl() {
+        return Duration.ofMinutes(emailVerificationTTL);
+    }
 
     private String key(String token) {
         return "email_verification:" + token;
@@ -34,6 +39,7 @@ public class EmailVerificationServiceImpl
 
         String token = UUID.randomUUID().toString();
 
+        // Temporary registration data stored in Redis
         PendingRegistration pending = PendingRegistration.builder()
                 .name(name)
                 .email(email)
@@ -43,11 +49,8 @@ public class EmailVerificationServiceImpl
         redisTemplate.opsForValue().set(
                 key(token),
                 pending,
-                VERIFICATION_TTL
+                verificationTtl()
         );
-
-        log.info("Email verification created email={} token={}",
-                email, token);
 
         return token;
     }
@@ -58,6 +61,7 @@ public class EmailVerificationServiceImpl
 
         String redisKey = key(token);
 
+        // Fetch pending registration from Redis
         Object value = redisTemplate.opsForValue().get(redisKey);
 
         if (value == null) {
@@ -67,7 +71,10 @@ public class EmailVerificationServiceImpl
             );
         }
 
+        // Token is single-use: remove immediately after validation
         redisTemplate.delete(redisKey);
+
+        log.info("Email verification token consumed successfully");
 
         return (PendingRegistration) value;
     }

@@ -53,7 +53,7 @@ public class AuthServiceImpl implements AuthService {
 
     @Value("${app.frontend.reset-password-url}")
     private String resetPasswordBaseUrl;
-    @Value("${app.frontend.reset-password-url}")
+    @Value("${app.verification.email.frontend-url}")
     private String emailVerificationBaseUrl;
 
     // Constants
@@ -65,40 +65,53 @@ public class AuthServiceImpl implements AuthService {
     @Transactional
     public void requestRegistration(RegisterRequest request) {
 
-        // Todo: Remove it
-        log.info("Inside service Register request");
-
+        // Prevent duplicate registrations at the entry point.
+        // This avoids sending verification emails for already-registered users.
         if (userRepository.existsByEmail(request.getEmail())) {
+            log.warn("User registration failed email={} reason = already_exists", request.getEmail());
             throw new DuplicateResourceException("Email already registered");
         }
 
         String encodedPassword =
                 passwordEncoder.encode(request.getPassword());
 
+        // Create a short-lived, single-use verification token
+        // and store pending registration data in Redis.
         String token = emailVerificationService.createVerification(
                 request.getName(),
                 request.getEmail(),
                 encodedPassword
         );
 
+        // Build frontend verification link
         String verifyLink = emailVerificationBaseUrl + "?token=" + token;
 
+        // Send verification email.
         mailService.sendEmailVerificationMail(
                 request.getEmail(),
                 verifyLink
         );
 
-        log.info("Registration verification requested email={}",
-                request.getEmail());
+        log.info("Registration verification email sent | email={}", request.getEmail());
     }
 
     @Override
     @Transactional
     public AuthResult completeRegistration(String token) {
 
+        // Validate verification token and consume it atomically.
+        // Token is removed immediately after successful validation.
         PendingRegistration pending =
                 emailVerificationService.verifyAndConsume(token);
 
+        // Re-check email existence to avoid race conditions
+        // (e.g. same email verified twice in parallel).
+        if (userRepository.existsByEmail(pending.getEmail())) {
+            log.warn("User registration failed email={} reason=already_exists", pending.getEmail());
+            throw new DuplicateResourceException("Email already registered");
+        }
+
+        // Create user only after successful email verification.
         User user = new User();
         user.setName(pending.getName());
         user.setEmail(pending.getEmail());
@@ -108,13 +121,16 @@ public class AuthServiceImpl implements AuthService {
                 pending.getEmail().split("@")[0].toLowerCase()
         );
 
+        // Save user info in database
         User savedUser = userRepository.save(user);
 
+        // Generate tokens
         TokenPair tokens = new TokenPair(
                 jwtTokenProvider.generateAccessToken(savedUser.getId()),
                 jwtTokenProvider.generateRefreshToken(savedUser.getId())
         );
 
+        // Build cookie
         ResponseCookie cookie =
                 cookieUtil.createRefreshToken(tokens.refreshToken());
 
