@@ -1,68 +1,51 @@
 package com.mockify.backend.model;
 
+import com.mockify.backend.model.Organization;
 import jakarta.persistence.*;
-import lombok.*;
+import lombok.Getter;
+import lombok.Setter;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.time.LocalDateTime;
+import java.util.Map;
 import java.util.UUID;
 
 @Entity
-@Table(
-        name = "schema_templates",
-        indexes = {
-                @Index(name = "idx_schema_templates_slug", columnList = "slug"),
-                @Index(name = "idx_schema_templates_category", columnList = "category")
-        }
-)
+@Table(name = "schema_templates")
 @Getter
 @Setter
-@NoArgsConstructor
-@AllArgsConstructor
-@Builder
 public class SchemaTemplate {
 
     @Id
-    @Column(columnDefinition = "UUID", updatable = false, nullable = false)
+    @GeneratedValue
     private UUID id;
 
-    @Column(length = 100, nullable = false)
     private String name;
-
-    @Column(length = 100, nullable = false, unique = true)
     private String slug;
-
-    @Column(columnDefinition = "TEXT")
     private String description;
 
-    @Column(length = 30, nullable = false)
-    private String category;
-
+    @JdbcTypeCode(SqlTypes.JSON)
     @Column(columnDefinition = "jsonb", nullable = false)
-    private String schemaDefinition;
+    private Map<String, Object> schemaJson;
 
-    @Column(nullable = false)
-    private Boolean isSystem = true;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "organization_id")
+    private Organization organization; // null = system
 
-    @Column(nullable = false, updatable = false)
+    private boolean systemTemplate;
+
     private LocalDateTime createdAt;
-
-    @Column(nullable = false)
     private LocalDateTime updatedAt;
 
-    // Auto timestamps
     @PrePersist
-    protected void onCreate() {
-        this.createdAt = LocalDateTime.now();
-        this.updatedAt = LocalDateTime.now();
-
-        if (this.id == null) {
-            this.id = UUID.randomUUID();
-        }
+    void onCreate() {
+        createdAt = LocalDateTime.now();
+        updatedAt = createdAt;
     }
 
     @PreUpdate
-    protected void onUpdate() {
-        this.updatedAt = LocalDateTime.now();
+    void onUpdate() {
+        updatedAt = LocalDateTime.now();
     }
 }
-

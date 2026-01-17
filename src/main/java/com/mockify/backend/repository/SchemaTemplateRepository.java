@@ -1,6 +1,5 @@
 package com.mockify.backend.repository;
 
-
 import com.mockify.backend.model.SchemaTemplate;
 import org.springframework.data.jpa.repository.JpaRepository;
 
@@ -10,10 +9,13 @@ import java.util.UUID;
 
 public interface SchemaTemplateRepository extends JpaRepository<SchemaTemplate, UUID> {
 
-    List<SchemaTemplate> findByCategoryAndIsSystemTrue(String category);
+    List<SchemaTemplate> findByOrganizationIdOrSystemTemplateTrue(UUID orgId);
 
-    List<SchemaTemplate> findByIsSystemTrue();
+    List<SchemaTemplate> findBySystemTemplateTrue();   // ✅ NEW
 
-    Optional<SchemaTemplate> findByIdAndIsSystemTrue(UUID id);
+    Optional<SchemaTemplate> findBySlugAndOrganizationId(String slug, UUID orgId);
+
+    Optional<SchemaTemplate> findBySlugAndSystemTemplateTrue(String slug);
+
+    boolean existsBySlugAndOrganizationId(String slug, UUID orgId);
 }
-
