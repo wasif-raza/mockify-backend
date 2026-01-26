@@ -4,6 +4,7 @@ import com.mockify.backend.dto.response.schema.MockSchemaResponse;
 import com.mockify.backend.dto.response.schema.SchemaTemplateResponse;
 import com.mockify.backend.service.EndpointService;
 import com.mockify.backend.service.SchemaTemplateService;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
@@ -18,7 +19,7 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/api/schema-templates")
 @RequiredArgsConstructor
-@Slf4j
+@Tag(name = "Mock Schema Templates")
 public class SchemaTemplateController {
 
     private final EndpointService endpointService;
@@ -48,8 +49,6 @@ public class SchemaTemplateController {
         // Username stores the UUID in our auth setup.
         // Converting here avoids leaking auth-layer assumptions into service logic.
         UUID userId = UUID.fromString(userDetails.getUsername());
-
-        log.info("User {} applying schema template '{}' under project {}", userId, templateSlug, project);
 
         // Resolve project ID from (orgSlug + projectSlug) instead of trusting client-provided IDs.
         UUID projectId = endpointService.resolveProject(org, project);
