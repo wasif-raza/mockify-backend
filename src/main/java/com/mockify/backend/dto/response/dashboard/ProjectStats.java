@@ -1,6 +1,8 @@
 package com.mockify.backend.dto.response.dashboard;
 
 public record ProjectStats(
-        long schemas,
-        long records
+        long schemaCount,
+        long recordCount,
+        long activeRecords,
+        long expiredRecords
 ) {}

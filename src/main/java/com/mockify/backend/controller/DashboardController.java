@@ -34,28 +34,36 @@ public class DashboardController {
 
     @GetMapping("/organization/{orgId}")
     public ResponseEntity<OrganizationStats> organizationStats(
-            @PathVariable UUID orgId) {
+            @PathVariable UUID orgId,
+            @AuthenticationPrincipal UserDetails userDetails) {
 
+        UUID userId = UUID.fromString(userDetails.getUsername());
         return ResponseEntity.ok(
-                dashboardService.organizationStats(orgId)
+                dashboardService.organizationStats(userId, orgId)
         );
     }
 
     @GetMapping("/project/{projectId}")
     public ResponseEntity<ProjectStats> projectStats(
-            @PathVariable UUID projectId) {
+            @PathVariable UUID projectId,
+            @AuthenticationPrincipal UserDetails userDetails) {
+
+        UUID userId = UUID.fromString(userDetails.getUsername());
 
         return ResponseEntity.ok(
-                dashboardService.projectStats(projectId)
+                dashboardService.projectStats(userId, projectId)
         );
     }
 
     @GetMapping("/schema/{schemaId}")
     public ResponseEntity<SchemaStats> schemaStats(
-            @PathVariable UUID schemaId) {
+            @PathVariable UUID schemaId,
+            @AuthenticationPrincipal UserDetails userDetails) {
+
+        UUID userId = UUID.fromString(userDetails.getUsername());
 
         return ResponseEntity.ok(
-                dashboardService.schemaStats(schemaId)
+                dashboardService.schemaStats(userId, schemaId)
         );
     }
 
