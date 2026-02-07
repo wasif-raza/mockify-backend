@@ -1,5 +1,7 @@
 package com.mockify.backend.service.impl;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mockify.backend.dto.response.schema.MockSchemaResponse;
 import com.mockify.backend.dto.response.schema.SchemaTemplateResponse;
 import com.mockify.backend.exception.ResourceNotFoundException;
@@ -21,6 +23,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @Slf4j
@@ -34,6 +37,8 @@ public class SchemaTemplateServiceImpl implements SchemaTemplateService {
 
     private final SchemaTemplateMapper schemaTemplateMapper;
     private final MockSchemaMapper mockSchemaMapper;
+    private final ObjectMapper objectMapper;
+
 
     private final SlugService slugService;
     private final AccessControlService accessControlService;
@@ -83,19 +88,27 @@ public class SchemaTemplateServiceImpl implements SchemaTemplateService {
                         );
 
         // Start with a human-readable slug based on template name
-        String schemaSlug = slugService.generateSlug(template.getName());
+        String baseSlug = slugService.generateSlug(template.getName());
+        String schemaSlug = baseSlug;
 
-        // Slugs must be unique *within a project* to avoid URL / endpoint conflicts.
-        if (mockSchemaRepository.existsBySlugAndProjectId(schemaSlug, projectId)) {
-            schemaSlug = slugService.generateUniqueSlug(schemaSlug);
+        int attempt = 1;
+        while (mockSchemaRepository.existsBySlugAndProjectId(schemaSlug, projectId)) {
+            schemaSlug = baseSlug + "-" + attempt++;
         }
+
 
         MockSchema schema = new MockSchema();
         schema.setName(template.getName());
         schema.setSlug(schemaSlug);
 
 
-        schema.setSchemaJson(new HashMap<>(template.getSchemaJson()));
+        schema.setSchemaJson(
+                objectMapper.convertValue(
+                        template.getSchemaJson(),
+                        new TypeReference<Map<String, Object>>() {}
+                )
+        );
+
 
         schema.setProject(project);
 
