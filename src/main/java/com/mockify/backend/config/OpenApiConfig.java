@@ -49,6 +49,7 @@ public class OpenApiConfig {
                         new Tag().name("Dashboard").description("Provides summary statistics and health insights for users, organizations, projects, and schemas."),
                         new Tag().name("Organization").description("Operations for managing organizations and their associated resources."),
                         new Tag().name("Project").description("Operations for managing the project lifecycle and related resources."),
+                        new Tag().name("Mock Schema Templates").description("Operation for Getting Pre Defined Schema Templates."),
                         new Tag().name("Mock Schema").description("Operations for defining and managing mock data schemas."),
                         new Tag().name("Mock Record").description("Operations for creating, retrieving, updating, and deleting mock records based on defined schemas."),
                         new Tag().name("Public MockRecord").description("Publicly accessible operations for retrieving mock records."),
